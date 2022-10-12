@@ -57,7 +57,7 @@ c color array NEEDS to be length 10 or more!
      $     start_idx_str*80, end_idx_str*80, jday_str*80,
      $     word(nw_max)*80
 
-      integer*4 ra_col, dec_col, earth_delta_col, earth_mag_col, 
+      integer*4 ra_col, dec_col, earth_delta_col, earth_mag_col
 
       logical keep_going, detectable
 
@@ -69,7 +69,7 @@ c color array NEEDS to be length 10 or more!
 
       lun_h = 10
       lun_t = 11
-      lun_trajectory = 12
+
       code = 500
       gb = 0.15
 
@@ -113,19 +113,19 @@ C     for each element in the distri_file compute position viewed from  epos
          if ( rierr .ne. 0) then
             exit
          end if
-
+         
 c     Get the RA/DEC at survey date
          mt = M
      $        + (TwoPi/(a**1.5d0*365.25d0))*(obs_jday-jday)
          mt = mt - int(mt/TwoPi)*TwoPi
-
-C        Get heliocentric X/Y/Z location at mean anomally mt         
+         
+C     Get heliocentric X/Y/Z location at mean anomally mt         
          call pos_cart(a, e, inc, node, peri, mt, pos(1),
      $        pos(2), pos(3))
 C        Compute heliocentric distance at obs_jday 
          call DistSunEcl(obs_jday, pos, r)
 C        Compute the RA/DEC J2000 as seend from epos set previously
-         call RADECeclXV(pos, epos, ground_delta, ra, dec)
+ 1       call RADECeclXV(pos, epos, ground_delta, ra, dec)
 c     Compute the Ground Based magnitude
          call AppMag(r, ground_delta, eos, h, gb, alpha, 
      $        ground_mag, ierr) 
@@ -144,7 +144,7 @@ C     Write the new coordinates and mosition to the output file.
          end do
          write(lun_h, *)
 
-         8000 end do
+ 8000 end do
       close (lun_h)
 
 
