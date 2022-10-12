@@ -1365,3 +1365,94 @@ Cf2py intent(out) rout
       END
 
 
+      subroutine parse (command, nwmax, nw, word, lw)
+
+c \subsection{Arguments}
+c \subsubsection{Definitions}
+c \begin{verse}
+c \verb|command| = command line to parse \\
+c \verb|lw()| = word lengthes \\
+c \verb|nw| = number of words in command line \\
+c \verb|nwmax| = maximum allowed number of words \\
+c \verb|word()| = words in command line
+c \end{verse}
+
+c \subsubsection{Declarations}
+
+      integer*4
+     $     lw(1), nw, nwmax
+
+      character
+     $     command*(*), word(1)*(*)
+
+c \subsection{Variables}
+c \subsubsection{Internal variables}
+c \begin{verse}
+c \verb|k| = dummy index \\
+c \verb|lc| = length of command line \\
+c \end{verse}
+
+c \subsubsection{Intrinsic Fortran functions used}
+c \begin{verse}
+c \verb|index|
+c \end{verse}
+
+c \subsubsection{Declarations}
+
+      integer*4
+     $     k, lc, lw0
+
+c \subsection{Parsing}
+
+      do nw = 1, nwmax
+         lw(nw) = 0
+      end do
+      lc = len(command)
+ 1000 continue
+      if ((command(lc:lc) .eq. char(0))
+     $  .or. (command(lc:lc) .eq. ' ')) then
+         lc = lc - 1
+         if (lc .eq. 0) goto 1001
+         goto 1000
+      end if
+ 1001 continue
+      nw = 0
+      do k = 1, nwmax
+          word(k) = ' '
+      end do
+
+ 1100 continue
+      if (lc .gt. 0) then
+
+c Gets rid of leading space characters
+         if (nw .ge. nwmax) then
+            write (6, *) command
+            write (6, *) 'parse: too many words in command line.'
+            stop
+         end if
+ 1050    continue
+         if (command(1:1) .eq. ' ') then
+            command = command (2:lc)
+            lc = lc - 1
+            goto 1050
+         end if
+
+c Finds a word
+
+         nw = nw + 1
+         lw0 = index(command, ' ') - 1
+         if (lw0 .le. 0) then
+            lw(nw) = lc
+            word(nw) = command(1:lc)
+            lc = -1
+         else
+            word (nw) = command (1:lw0)
+            lw(nw) = lw0
+            command = command (lw0+2:lc)
+            lc = lc - lw0 - 1
+         end if
+         goto 1100
+      end if
+
+      return
+      end
