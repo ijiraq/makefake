@@ -10,7 +10,7 @@ c-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*
       integer(kind=4) output_lun, max_objects, max_iters
       integer(kind=4) field_number, i, j, version, k
 
-      real(kind=8) Pi, TwoPi, drad, mu, theta, phi
+      real(kind=8) Pi, TwoPi, drad, mu, theta, phi, gi
       real(kind=8) gb, alpha, mag_limit, H_limit, MA
 
 C     if in_sample=1 then we include this object, otherwise skip
@@ -35,40 +35,33 @@ C     if in_sample=1 then we include this object, otherwise skip
       character output_filename*120, field*120
       character*80 message
 
-      max_iters = 1E8
+      max_iters = 1E9
       obs_code = 500
-
-C     New Horizons Summer 2020 Search Field Centre for 24-Jun-2020
-C     the planned position and this date are used as the seed for 
-C     planting sources
-C     NHF1_20200624T00:00:00 RA=190741.37 DEC=-201619.37
-C     NHF2_20200624T00:00:00 RA=191315.00 DEC=-203737.18
-C     2020-06-24T00:00:00
-C     To avoid bright star we moved to these centers
-C     TGT_NHF120200824=OBJECT="NHF1_20200824"
-C                             RA=190420.57 DEC=-201037.58 EQUINOX=2000.00
-C     TGT_NHF220200824=OBJECT="NHF2_20200824"
-C                             RA=191028.77 DEC=-201101.53 EQUINOX=2000.00
-C     Coded centre is left fixed as that's what is used in original orbit
-C     selection. F1 moved by 0.79 degrees, F2 moved by 0.78 degrees.  
-C     Subaru FOV is radius of 0.75 degrees and we select sources within 1.2 
-C     Thus, the edge of the field is not well populated.
-C     0.79+0.75 ~ 1.60 leaving 0.4 degree
-C     empty of sources.
-
-
 
       CALL parse_args(field, ra_cen, dec_cen, obs_jday, 
      $                fake_jday, max_objects)
 
-C     set the date to start of 2022-09-01.. this is the base date for generating positions.
-C     obs_jday = 2459823.5
+C     field == name of field to make fakes for, can be any string
+C     ra_cen == central RA of region to get fake sources for (deg)
+C     dec_cen == central DEC of region to get fake sources for (deg)
+C     obs_jday == julian date that is the opposition date for this field centre
+C     fkae_jday == date to generate source positions for
+C     max_objects = number of objects to generate for this field.
+      
       epoch_M = obs_jday
-      call srand(int(epoch_M))
 
+C     set the random seed to the same value for all runs, this is a
+C     realization of the Kuiper belt
+      call srand(123456789)
+
+C     compute the cos_of_dec once as we need this many times.
       cos_obs_dec = cos(dec_cen*drad)
+
+C     For each field we pull all the sources that are within 1.2
+C     degrees. This ensures we can plant sources in every ccd of mosaic.
       obs_radius = 1.2*drad
 
+C     create the output file name string, little finiky. 
       do i = 1, len(in_str)
          in_str(i:i) = ' '
          output_filename(i:i) = ' '
@@ -106,103 +99,89 @@ C     Get the observer location at fake date + 1 day (for rates)
       write(output_lun, 9002) 'obj_id', 'RA', 'DEC', 'Delta', 
      $     'mag', 'a', 
      $     'e', 'inc',
-     $     'node', 'peri', 'M', 'H', 'dra_arc', 'ddec_arc', 'r_sun'
+     $     'node', 'peri', 'M', 'H', 'dra_arc',
+     $     'ddec_arc', 'r_sun', 'gi'
 
-      do i = 1, 2
 C     Loop over making fake objects until we have max_objects in frame
-         niter = 1
-         nobjects = 1
-         do while ((nobjects .le. max_objects) .and. 
-     $        (niter .lt. max_iters))
-            niter = niter + 1
-            a = 30 + rand()*70
-            e = rand()*0.5
-            inc = Pi*rand()/2.0
-            node = TwoPi*rand()
-            peri = TwoPi*rand()
-            M = TwoPi*rand()
+      niter = 1
+      nobjects = 1
+      do while ((nobjects .le. max_objects) .and. 
+     $     (niter .lt. max_iters))
+         niter = niter + 1
+         a = 30 + rand()*70
+         e = rand()*0.5
+         inc = Pi*rand()/2.0
+         node = TwoPi*rand()
+         peri = TwoPi*rand()
+         M = TwoPi*rand()
             
             
-            call pos_cart(a, e, inc, node, peri, M, pos(1),
-     $           pos(2), pos(3))
-            call RADECeclXV (pos, obs_pos, delta, ra, dec, ierr)
+         call pos_cart(a, e, inc, node, peri, M, pos(1),
+     $        pos(2), pos(3))
+         call RADECeclXV (pos, obs_pos, delta, ra, dec, ierr)
 C     Given this random orbit determine if its on the image.
 
-C     This loop select sources that are within RADIUS for a field 
-C     but not in radius for any of the previous fields.
-            in_sample(i) = 0
-            do k = 1, i
-               obs_ra = ra_cen*drad
-               obs_dec = dec_cen*drad
-               radius = sqrt(((ra-obs_ra)*cos_obs_dec)**2 + 
-     $              (dec-obs_dec)**2)
-               if ( radius .lt. obs_radius ) then 
-                  if ( k .eq. i ) then
-                     in_sample(i) = in_sample(i) + 1
-                  else
-                     in_sample(i) = in_sample(i) + 4
-                  end if
-               end if
-            end do
+C     This loop selects sources that are within RADIUS for a field 
+         obs_ra = ra_cen*drad
+         obs_dec = dec_cen*drad
+         radius = sqrt(((ra-obs_ra)*cos_obs_dec)**2 + 
+     $        (dec-obs_dec)**2)
+         if ( radius .lt. obs_radius ) then
+            nobjects = nobjects +1
 
-            if ( in_sample(i) .eq. 1 ) then
 C     Compute the Ground Based magnitude
-               r = sqrt(pos(1)**2 + pos(2)**2 + pos(3)**2)
-               mag = mag_limit+1
-               
-C     Distribute H randomly between 5 and 11
+            r = sqrt(pos(1)**2 + pos(2)**2 + pos(3)**2)
+
+C     Distribute H randomly between 5 and 14
 C     Until we get one bright enough
-               do while ( mag .gt. mag_limit )
-                  H = 5+rand()*9
-                  call AppMag(r, delta, ros, H, gb, alpha, 
-     $                 mag, ierr) 
-               end do
+            mag = mag_limit+1   
+            do while ( mag .gt. mag_limit )
+               H = 5+rand()*9
+               call AppMag(r, delta, ros, H, gb, alpha, 
+     $              mag, ierr) 
+            end do
 
 C     This orbit / object is inside our sample. 
 C     Compute circumstances at current observation.
 
-               fake_M = MA(M, epoch_M, a, fake_jday)
-               call pos_cart(a, e, inc, node, peri, fake_M, pos(1),
-     $              pos(2), pos(3))
-               call RADECeclXV (pos, fake_obs_pos, fake_delta, 
-     $              fake_ra, fake_dec, ierr)
-               r = sqrt(pos(1)**2 + pos(2)**2 + pos(3)**2)
-               call AppMag(r, delta, fake_ros, H, gb, alpha, 
-     $              mag, ierr) 
+            fake_M = MA(M, epoch_M, a, fake_jday)
+            call pos_cart(a, e, inc, node, peri, fake_M, pos(1),
+     $           pos(2), pos(3))
+            call RADECeclXV (pos, fake_obs_pos, fake_delta, 
+     $           fake_ra, fake_dec, ierr)
+            r = sqrt(pos(1)**2 + pos(2)**2 + pos(3)**2)
+            call AppMag(r, delta, fake_ros, H, gb, alpha, 
+     $           mag, ierr) 
 
 C     Compute position 1 day later to get sky motion rate
-               fake_M = MA(M, epoch_M, a, fake_jday+1)
+            fake_M = MA(M, epoch_M, a, fake_jday+1)
                
-               call pos_cart(a, e, inc, node, peri, fake_M, pos(1),
-     $              pos(2), pos(3))
+            call pos_cart(a, e, inc, node, peri, fake_M, pos(1),
+     $           pos(2), pos(3))
 
-               call RADECeclXV (pos, fake_obs_pos2, fake_delta2, 
-     $              fake_ra2, fake_dec2, ierr)
+            call RADECeclXV (pos, fake_obs_pos2, fake_delta2, 
+     $           fake_ra2, fake_dec2, ierr)
                
-               dra = (fake_ra2-fake_ra)*cos(fake_dec2)/24.0
-               ddec = (fake_dec2-fake_dec)/24.0
-               if ( i .gt. 1 ) then
-                  object_number = -1 * nobjects
-               else
-                  object_number = nobjects
-               end if
-               write (output_lun, 9001) object_number,
-     $              fake_ra/drad, fake_dec/drad, fake_delta, mag,
-     $              a, e, inc/drad, node/drad, peri/drad,
-     $              fake_M/drad, H, 3600*dra/drad, 3600.0*ddec/drad,
-     $              r
-            end if
-C     Regardless of which sample this was in, increment the counter
-            if ( in_sample(i) .gt. 0 ) then 
-               nobjects = nobjects +1
-            end if   
-         end do
+            dra = (fake_ra2-fake_ra)*cos(fake_dec2)/24.0
+            ddec = (fake_dec2-fake_dec)/24.0
+            object_number = niter
+
+C     compute a g-i color as randomly distributed between 0.5 and 1.5
+C     color range in based of Oflek 2012 (SDDS colors of TNOS)
+            gi = rand() + 0.5
+
+            write (output_lun, 9001) object_number,
+     $           fake_ra/drad, fake_dec/drad, fake_delta, mag,
+     $           a, e, inc/drad, node/drad, peri/drad,
+     $           fake_M/drad, H, 3600*dra/drad, 3600.0*ddec/drad,
+     $           r, gi
+         end if
       end do
 
       STOP
 
- 9001 format (i8,14(f16.6,1x))
- 9002 format (a8,14(a16,1x))
+ 9001 format (i10, 15(f16.6,1x))
+ 9002 format (a10, 15(a16,1x))
 
       end program xx
 

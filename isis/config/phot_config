@@ -4,12 +4,12 @@
  rad2_bg     20.0
  nstars      5
  mesh        2
- saturation  100000.0
+ saturation  10000.0
  min         0.0
- psf_width   23
+ psf_width   9
  radphot     5.0
  nstar_max   8
- rad_aper    7.0
+ rad_aper    4.0
  nb_adu_el   1
  rmax        0.5
  first       1
