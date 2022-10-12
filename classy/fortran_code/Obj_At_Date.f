@@ -1,14 +1,19 @@
 c-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*
 c 
-c This program compute the position of objects at different times.
-c Should be used once basic detectabilty is determined, ie this uses the 
-c output of NHDetectability.
+c This program computes the position of model objects at different times.
+c This program should be used once basic detectabilty is determined, ie this 
+c uses the output of SurveySimulator. 
+c 
+c Be careful to provide the JD of the Mean Annomaly of your survey outputs as
+c the first JD on the commandline.
 c
-c This code add 0.7 to the lorri_mag values as Detectability didn't 
-c covert to V from H_r. 
-c
-c Usage: Obj_at_Date model trajectory obs-date
-c
+C USAGE: Obj_At_Date detect.dat JD_M JD_OBS
+C 
+C Whee detect.dat holds the obits of objects detected by the SurveySim
+C JD_M is the JD of the mean annomally in detect.dat
+C JD_OBS is the JD you want to know the positions for.
+C
+C This code use observer location 500
 c-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*
       
       include 'SurveySubs.f'
