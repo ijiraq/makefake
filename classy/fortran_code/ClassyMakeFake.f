@@ -33,7 +33,7 @@ C     if in_sample=1 then we include this object, otherwise skip
       real(kind=8) fake_ra2, fake_dec2, fake_delta2, fake_mag2, fake_M2
       real(kind=8) fake_obs_pos2(3), fake_ros2
       real(kind=8) obs_ra, obs_dec, obs_radius, cos_obs_dec
-      real(kind=8) r
+      real(kind=8) r, ran_mag
       character in_str*120
       character output_filename*120, field*120
       character*80 message
@@ -124,8 +124,10 @@ C     Loop over making fake objects until we have max_objects in frame
          node = TwoPi*r_elm(4)
          peri = TwoPi*r_elm(5)
          M = TwoPi*r_elm(6)
-         mag = mag_limit - (mag_limit - 22)*r_elm(7)
-         
+         ran_mag = mag_limit - (mag_limit - 22.0)*r_elm(7)
+C     compute a g-i color as randomly distributed between 0.5 and 1.5
+C     color range in based of Oflek 2012 (SDDS colors of TNOS)
+         gi = r_elm(8) + 0.5
          call random_seed(get=rseed)
             
             
@@ -144,15 +146,16 @@ C     This loop selects sources that are within RADIUS for a field
 
 C     Compute the Ground Based magnitude
             r = sqrt(pos(1)**2 + pos(2)**2 + pos(3)**2)
-C           H = mag - 2.5*LG(r) - 2.5*LG(delta)
+C     Set H based on randomize value of mag
+            H = ran_mag -5*LOG10(r) - 5*LOG10(delta)
 
 C     Until we get one bright enough
-            mag = mag_limit+1   
-            do while ( mag .gt. mag_limit )
-               H = 5+rand()*9
-               call AppMag(r, delta, ros, H, gb, alpha, 
-     $              mag, ierr) 
-            end do
+C            mag = mag_limit+1   
+C            do while ( mag .gt. mag_limit )
+C               H = 5+rand()*9
+C               call AppMag(r, delta, ros, H, gb, alpha, 
+C     $              mag, ierr) 
+C            end do
 
 C     This orbit / object is inside our sample. 
 C     Compute circumstances at current observation.
@@ -179,9 +182,6 @@ C     Compute position 1 day later to get sky motion rate
             ddec = (fake_dec2-fake_dec)/24.0
             object_number = niter
 
-C     compute a g-i color as randomly distributed between 0.5 and 1.5
-C     color range in based of Oflek 2012 (SDDS colors of TNOS)
-            gi = rand() + 0.5
 
             write (output_lun, 9001) object_number,
      $           fake_ra/drad, fake_dec/drad, fake_delta, mag,
