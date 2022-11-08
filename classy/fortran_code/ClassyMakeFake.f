@@ -9,6 +9,9 @@ c-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*
       integer(kind=4) obs_code, ierr, niter, nobjects, object_number
       integer(kind=4) output_lun, max_objects, max_iters
       integer(kind=4) field_number, i, j, version, k
+      integer, allocatable :: rseed(:)
+      integer rsize
+      real r_elm(8)
 
       real(kind=8) Pi, TwoPi, drad, mu, theta, phi, gi
       real(kind=8) gb, alpha, mag_limit, H_limit, MA
@@ -52,7 +55,12 @@ C     max_objects = number of objects to generate for this field.
 
 C     set the random seed to the same value for all runs, this is a
 C     realization of the Kuiper belt
-      call srand(123456789)
+      call random_seed(size=rsize)
+      allocate(rseed(rsize))
+      do i = 1, rsize
+         rseed(i) = 123456789
+      end do
+
 
 C     compute the cos_of_dec once as we need this many times.
       cos_obs_dec = cos(dec_cen*drad)
@@ -107,13 +115,18 @@ C     Loop over making fake objects until we have max_objects in frame
       nobjects = 1
       do while ((nobjects .le. max_objects) .and. 
      $     (niter .lt. max_iters))
+         call random_seed(put=rseed)
+         call random_number(r_elm)
          niter = niter + 1
-         a = 30 + rand()*70
-         e = rand()*0.5
-         inc = Pi*rand()/2.0
-         node = TwoPi*rand()
-         peri = TwoPi*rand()
-         M = TwoPi*rand()
+         a = 30 + r_elm(1)*70
+         e = r_elm(2)*0.5
+         inc = Pi*r_elm(3)/2.0
+         node = TwoPi*r_elm(4)
+         peri = TwoPi*r_elm(5)
+         M = TwoPi*r_elm(6)
+         mag = mag_limit - (mag_limit - 22)*r_elm(7)
+         
+         call random_seed(get=rseed)
             
             
          call pos_cart(a, e, inc, node, peri, M, pos(1),
@@ -131,8 +144,8 @@ C     This loop selects sources that are within RADIUS for a field
 
 C     Compute the Ground Based magnitude
             r = sqrt(pos(1)**2 + pos(2)**2 + pos(3)**2)
+C           H = mag - 2.5*LG(r) - 2.5*LG(delta)
 
-C     Distribute H randomly between 5 and 14
 C     Until we get one bright enough
             mag = mag_limit+1   
             do while ( mag .gt. mag_limit )
