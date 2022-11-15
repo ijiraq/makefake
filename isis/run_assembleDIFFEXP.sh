@@ -26,9 +26,9 @@ do
     interp_filename="$(get_image_filename "${INTERP}" "${PREFIX}" "${expnum}" "${VERSION}" "${ccd}")"
     diff_filename="$(get_image_filename "${DIFF}_${INTERP}" "${PREFIX}" "${expnum}" "${VERSION}" "${ccd}")"
     mask_filename="$(get_image_filename "${MASK}_${INTERP}" "${PREFIX}" "${expnum}" "${VERSION}" "${ccd}")"
-    logmsg INFO "launching assembleDIFFEXP of ${expnum}"
-    sk_launch.sh uvickbos/pycharm:0.1 "assemble-${expnum}" \
-    /arc/home/jkavelaars/classy-pipeline/venv/bin/python ${SRCDIR}/assembleDIFFEXP.py \
+    logmsg INFO "launching assembleDIFFEXP of ${expnum}-${ccd}"
+    sk_launch.sh uvickbos/pycharm:0.1 "assemble-${expnum}-${ccd}" \
+    /arc/home/jkavelaars/classy-pipeline/venv/bin/python "${SRCDIR}/assembleDIFFEXP.py" \
     "${primary}" "${interp_filename}" "${diff_filename}" "${mask_filename}" || logmsg ERROR "Error on launch assembleDIFFEXP" $?
 done < "${exposure_list}"
 
