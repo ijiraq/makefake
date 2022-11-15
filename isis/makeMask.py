@@ -58,7 +58,7 @@ def main(image):
     mask_as_ccd.header['EXPTYPE'] = 'MASK'
     for key in LSST_MASK_BITS:
         mask_as_ccd.header[key] = LSST_MASK_BITS[key]
-    mask_as_ccd.write(out_filename, output_verify='fix')
+    mask_as_ccd.write(out_filename, output_verify='fix', overwrite=True)
 
 
 if __name__ == '__main__':
