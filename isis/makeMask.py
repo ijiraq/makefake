@@ -29,7 +29,7 @@ LSST_MASK_BITS = {'BAD': 0,
                   }
 
 
-def main(image, version='m'):
+def main(image):
     """
     run the script
     """
@@ -65,6 +65,5 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser(
         description="""Using the input image and a mask to apply to image before running ISIS""")
     parser.add_argument('image', help="Filename of the image to build mask for")
-    parser.add_argument('--version', default='m', help="image filename version for mask (aka XXXXXX{VERSION}YY.fits")
     args = parser.parse_args()
-    main(args.image, version=args.version)
+    main(args.image)

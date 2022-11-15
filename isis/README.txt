@@ -1,28 +1,42 @@
-
 # Steps to run ISIS image subtraction, relies on SWARP:
 
-# PUT 'single extension fits' images into a directory using the `populate.py` script
+# define where the image database is
+export DBIMAGES=/arc/projects/classy/dbimages/
+export exp_list=list.txt
+export ref_list=ref_list.txt
+export ccd=0
 
-for image_filename in fk*.fits
+# Expects the artificial source added images start with 'fk' adjust this script as needed
+# Put the exposure numbers of all the images for a block in list.txt 
+# Put the expousre numbers of exposures that should go into reference image in ref_list.txt
+
+# PUT 'single extension fits' images into a directory using the `populate.py` script 
+# this only needs to be run once per list of files as each CCD is done in one loop.
+cd ${DBIMAGES}
+for expnum in $(cat list.txt)
 do
+cd ${expnum}
+image=
 /arc/home/jkavelaars/classy-pipeline/vevn/python /arc/projects/classy/pipeline/populate.py  image_filename
 done
 
-# I'm going to assume the artificial source added images start with 'fk' adjust this script as needed
-
-# Put the names of images to use for the reference image (ie the best 1/3rd of images) into file named 'ref_list.txt'
 
 # Start a SWARP container and go to the directory where populate.py put the fk images
 
-/arc/projects/classy/pipeline/swarp.sh fk*.fits   #  This will create interp_ and ref.fits images.. these are aligned and rectified images
+assembleCoadd.sh $(head -1 ${ref_list}) ${exp_list} ${ref_list} ${ccd}
+# run that command repeatedly until all 'swarps' succeed. Each chip directory should now have a
+# file with a name like interp_fkXXXXXXXXpYY.OK which indicates that the swarp step succeeded.
 
-# Start an ISIS container and go to the directory where you just ran swarp.sh
+# now we do the image differencing
+run_imageDifference.sh $(head -1 ref_list.txt) ${exp_list} ${ccd}
+# this can be run repeatedly also, until all frames succeed.  
+# each chip directory should have a file like conv_interp_fkXXXXXXXpYY.OK to indicate success
 
-/arc/projects/classy/pipeline/diff.sh fk*.fits
+# Next we build a mask of the differenced image to help kbmod find KBOs instead of bad columns
+run_makeMask.sh ${exp_list} ${ccd}
 
-# This produces a bunch of images names 'conv_interp_{image}.fits' where {image} is the name of the images craeted by populate.py 
+# Now we put the difference, masks  and variance (made internall) into an MEF
+# this is also the step where we 'invert' the difference images as 'ISIS' subtracts from the ref
+run_assembleDIFFEXP.sh ${exp_list} ${ccd} 
 
-# Now we put the masks (made in the swarp step) and the subtracted images into an MEF.. this is also the step where we 'invert' the difference images as 'ISIS' subtracts from the ref image and we want to have subtracted the ref image.
-
-/arc/home/jkavelaars/classy-pipeline/build_DIFFEXP.sh fk*.fits
-
+# DONE
