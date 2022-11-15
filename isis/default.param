@@ -1,4 +1,0 @@
-X_IMAGE                  Object position along x                                   [pixel]
-Y_IMAGE                  Object position along y                                   [pixel]
-FLUX_AUTO                Flux within a Kron-like elliptical aperture               [count]
-FLUX_MAX                 Peak flux above background                                [count]
