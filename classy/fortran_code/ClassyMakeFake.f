@@ -1,4 +1,4 @@
-c-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*
+C-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*
 
       include 'utils.f'
 
@@ -139,9 +139,7 @@ C     Given this random orbit determine if its on the image.
 C     This loop selects sources that are within RADIUS for a field 
          obs_ra = ra_cen*drad
          obs_dec = dec_cen*drad
-         radius = sqrt(((ra-obs_ra)*cos_obs_dec)**2 + 
-     $        (dec-obs_dec)**2)
-         if ( radius .lt. obs_radius ) then
+         if (radius(ra, dec, obs_ra, obs_dec) .lt. obs_radius) then
             nobjects = nobjects +1
 
 C     Compute the Ground Based magnitude
@@ -198,6 +196,13 @@ C     Compute position 1 day later to get sky motion rate
 
       end program xx
 
+      real*8 function radius(ra1, dec1, ra2, dec2)
+      real*8 ra1, dec1, ra2, dec2
+      
+      radius = acos(sin(dec1)*sin(dec2) + 
+     $     cos(dec1)*cos(dec2)*cos(ra1-ra2))
+      return
+      end function radius
 
       real*8 function MA(M, epoch_M, a, jday)
 C     Move the Mean Annomally from jday to epoch_M
