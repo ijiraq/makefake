@@ -2,14 +2,12 @@
 #
 # Build a reference exposure (Coadd) given a list of input exposures and those to be used for the reference stack
 #
+TYPE="interp"
 SWARP="/usr/local/bin/swarp"
 CMD=$(basename "${BASH_SOURCE[0]}")
 SRCDIR=$(dirname "${BASH_SOURCE[0]}")
 GET_KEYWORD="${SRCDIR}/get_keyword.py"
-prefix="fk"
-version="p"
 export NOPTS=3
-TYPE="interp"
 
 export USAGE="${CMD} [-h] [-l DEBUG|INFO|WARNING|ERROR] exposure_lst reference_list ccd
 
@@ -49,7 +47,7 @@ ccd=$1 && shift
 # get the name of the reference image and its header
 ref_exp=$(head -n 1 "${reference_list}")
 ref_dir="$(realpath "$(get_dbimages_directory "${ref_exp}" "${ccd}")")"
-ref_image=$(get_image_filename "ref_${TYPE}" ${prefix} "${ref_exp}" ${version} "${ccd}")
+ref_image=$(get_image_filename "ref_${TYPE}" ${PREFIX} "${ref_exp}" ${VERSION} "${ccd}")
 ref_head="${ref_image%%.fits}.head"
 stack_inputs="${ref_dir}/${ref_image%%.fits}.stack_list"
 ref_inputs="${ref_dir}/${ref_image%%.fits}.ref_list"
@@ -59,7 +57,7 @@ logmsg INFO "Building reference image ${ref_image} from exposures in ${reference
 [ -f "${stack_inputs}" ] && rm "${stack_inputs}"
 while IFS="" read -r expnum || [[ -n ${expnum} ]]
 do
-    image=$(get_dbimages_directory "${expnum}" "${ccd}")/$(get_image_filename "" ${prefix} "${expnum}" "${version}" "${ccd}")
+    image=$(get_dbimages_directory "${expnum}" "${ccd}")/$(get_image_filename "" ${PREFIX} "${expnum}" "${VERSION}" "${ccd}")
     logmsg DEBUG "Adding ${image} to stacking setup"
     [ -f "${image}" ] || logmsg ERROR "${image} not found" $?
     grep -q "${expnum}" "${reference_list}" && echo "${image}" >> "${ref_inputs}"
@@ -67,24 +65,17 @@ do
 done < "${exposure_list}"
 
 # name to give to the skaha job that builds the reference header
-name=${ref_head//_/-}
-name="ref-${ref_exp}-${ccd}-head"
+name=$(launch_name "ref-head" ${PREFIX} ${ref_exp} ${VERSION} ${ccd})
 
 # build a reference frame header using the WCS from all the images of this field (given on the command line)
 cd "${ref_dir}" || logmsg ERROR "Cannot cd to ${ref_dir}?" $?
 logmsg INFO "Working in $(pwd)"
-logmsg INFO "Checking if ${name}.OK exists"
-if [ -f "${name}.OK" ]
-then
-    logmsg WARNING "Reference header construction OK file exists, skipping"
-else  
-    logmsg INFO "creating master reference header..."
-    sk_wait.sh "$("sk_launch.sh" "uvickbos/swarp:0.1" "${name}" "${SWARP}" \
-			      -c "${CONFIG}" -HEADER_ONLY Y -IMAGEOUT_NAME "${ref_head}" \
-			      -WEIGHT_TYPE NONE  @"${stack_inputs}")"
-    [ -f "${ref_head}" ] || logmsg ERROR "Failed to create ${ref_head} in ${ref_dir}" $?
-   logmsg INFO "Header ${ref_head} contains reference frame"
-fi
+logmsg INFO "creating master reference header..."
+sk_wait.sh "$("sk_launch.sh" "uvickbos/swarp:0.1" "${name}" "${SWARP}" \
+	     -c "${CONFIG}" -HEADER_ONLY Y -IMAGEOUT_NAME "${ref_head}" \
+	     -WEIGHT_TYPE NONE  @"${stack_inputs}")"
+[ -f "${ref_head}" ] || logmsg ERROR "Failed to create ${ref_head} in ${ref_dir}" $?
+logmsg INFO "Header ${ref_head} contains reference frame"
 
 # Create weight and header files for each input image (a link to the flat field and a link to the reference header)
 logmsg INFO "Putting links to the reference header into each input image directory"
@@ -93,7 +84,7 @@ do
     exp_dir=$(dirname "${image}")
     exp_file=$(basename "${image}")
     cd "${exp_dir}"  || logmsg ERROR "Cannot change to directory ${exp_dir}" $?
-    name="${TYPE}-${exp_file%%.fits}-${ccd}"
+    name=$(launch_name "swarp" "" ${exp_file%.fits} "" "")
     if [ -f "${name}.OK" ]
     then
       logmsg WARNING "${name}.OK exists in ${exp_dir}, skipping"
@@ -115,7 +106,7 @@ do
     ln -s "${relpath}" "${weight_file}"
     logmsg INFO "Launching swarp of ${exp_file} onto ${interp_head} reference"
     ( sk_launch.sh uvickbos/swarp:0.1 "${name}" \
-		   /usr/local/bin/swarp \
+		   ${SWARP} \
 		   -c "${CONFIG}" \
 		   -IMAGEOUT_NAME "${interp_file}" \
 		   -COPY_KEYWORDS MJDEND,EXPTIME "${exp_file}" || logmsg ERROR "swarp launch of ${image} failed" $? )
@@ -130,7 +121,9 @@ then
     ref_inputs=$(basename "${ref_inputs}")
     ref_image=$(basename "${ref_image}")
     logmsg INFO "Making the reference image ${ref_image} using ${ref_inputs} in $(pwd)"
-    sk_wait.sh "$(sk_launch.sh uvickbos/swarp:0.1 ref-${ccd} ${SWARP} -c "${CONFIG}" \
+    name=$(launch_name "swarp" "" ${ref_image%.fits} "" "" )
+    name=${name//_/-}
+    sk_wait.sh "$(sk_launch.sh uvickbos/swarp:0.1 ${name} ${SWARP} -c "${CONFIG}" \
 			      -IMAGEOUT_NAME "${ref_image}" "@${ref_inputs}")"
     [ -f "${ref_image}" ] || logmsg ERROR "Failed to create ${ref_image}" $?
 fi

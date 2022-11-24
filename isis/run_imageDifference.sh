@@ -4,8 +4,6 @@ CMD=$(basename "${BASH_SOURCE[0]}")
 SRCDIR=$(dirname "${BASH_SOURCE[0]}")
 export NOPTS=3
 TYPE="interp"
-VERSION="p"
-PREFIX="fk"
 export USAGE="${CMD} reference exposure_list ccd
 
 reference is the reference exposure number
@@ -30,6 +28,7 @@ ref_image=$(get_image_filename "ref_${TYPE}" "${PREFIX}" "${ref_exp}" "${VERSION
 ref_image="$(realpath "${ref_dir}/${ref_image}")"
 logmsg DEBUG "Reference image: ${ref_image}"
 
+JOBID=()
 while IFS="" read -r expnum || [[ -n ${expnum} ]]
 do
     img_dir="$(realpath "$(get_dbimages_directory "${expnum}" "${ccd}")")"
@@ -38,5 +37,12 @@ do
     result_file="$(get_image_filename "conv_${TYPE}" "${PREFIX}" "${expnum}" "${VERSION}" "${ccd}")"
     logmsg INFO "launching difference of ${result_file} = ${ref_image} - ${img_file}"
     logmsg DEBUG "mrj_phot config ${config}"
-    sk_launch.sh uvickbos/isis:2.2 "diff-${expnum}-${ccd}" "${SRCDIR}/imageDifference.sh" -l DEBUG ${config} "${ref_image}" "${img_file}" "${result_file}" || logmsg ERROR "Error on launch mrj_phot" $?
+    name=$(launch_name "imagedifference" ${PREFIX} ${expnum} ${VERSION} ${ccd})
+    JOBID="$(sk_launch.sh uvickbos/isis:2.2 "${name}" "${SRCDIR}/imageDifference.sh" -l DEBUG ${config} "${ref_image}" "${img_file}" "${result_file}")"
 done < "${exposure_list}"
+
+for ID in "${JOBID[@]}"
+do
+  logmsg INFO "Pausing until ${ID} finished"
+  sk_wait.sh "${ID}"
+done

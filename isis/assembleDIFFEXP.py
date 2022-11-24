@@ -1,11 +1,13 @@
 from astropy.io import fits
 from astropy.wcs import WCS
+from astropy import units as u
 import sys
 import os
 import sip_tpv
 import numpy
 import argparse
 import logging
+import ccdproc
 
 
 def main():
@@ -53,12 +55,9 @@ def build_mef(primary: str, interp_filename: str, diff_filename: str, mask_filen
     with fits.open(interp_filename) as interp:
         sip_tpv.pv_to_sip(interp[0].header)
         wcs_header = WCS(interp[0].header).to_header()
-        sky_var = numpy.median(interp[0].data[800:1600, 1600:2400])
-        gain = header['GAIN']
-        # print(sky_var)
-        # print(gain)
-        var = (gain * (sky_var + numpy.abs(interp[0].data - sky_var))).astype('int16')
-        # print(numpy.mean(var))
+        var = ccdproc.CCDData(interp[0].data, unit=u.adu)
+        var = ccdproc.create_deviation(var, gain=1.6*u.electron/u.adu, readnoise=5*u.electron) 
+        var = var.uncertainty.array**2
         var[interp[0].data == 0] = 0
 
     # get the difference image
@@ -84,7 +83,7 @@ def build_mef(primary: str, interp_filename: str, diff_filename: str, mask_filen
     expnum = diff_hdulist[0].header['EXPNUM']
     ccdnum = diff_hdulist[0].header["EXTVER"]
     diff_image = f"DIFFEXP-{expnum}-{ccdnum:02d}.fits"
-    diff_hdulist.writeto(diff_image)
+    diff_hdulist.writeto(diff_image, overwrite=True)
     return diff_image
 
 

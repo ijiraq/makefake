@@ -1,5 +1,7 @@
 #!/bin/bash
 export DBIMAGES=${DBIMAGES:-/arc/projects/classy/dbimages}
+export VERSION="${VERSION:-p}"
+export PREFIX="${PREFIX:-fk}"
 
 # Some function to make writing scripts in bash a little 'nicer'.
 
@@ -48,6 +50,20 @@ function get_dbimages_directory(){
     expnum=$1 && shift
     ccd=$1 && shift
     printf "${DBIMAGES}/${expnum}/ccd%02.0f" "${ccd}"
+}
+
+function launch_name(){
+    cmd=$1 && shift
+    prefix=$1 && shift
+    expnum=$1 && shift
+    version=$1 && shift
+    ccd=$1 && shift
+    if [ -z ${ccd} ] 
+    then
+	printf "${cmd}-${prefix}${expnum}${version}"
+    else
+    	printf "${cmd}-${prefix}${expnum}${version}%02.0f" ${ccd}
+    fi
 }
 
 OPTIND=1
