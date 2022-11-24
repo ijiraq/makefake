@@ -2975,23 +2975,7 @@ c Get heliocentric position of Earth.
          vel(3) = 0.d0
       else if ( code .lt. 0 ) then
          fun = -1*code
-         DO
-            READ(fun, *, IOSTAT=ierr) jd, pos(1), pos(2), pos(3), 
-     $           vel(1), vel(2), vel(3)
-            if (ierr .ne. 0) then
-               write(6, *) 'Requested date outside trajectory file'
-               return
-            end if
-            if (jd .gt. t) then               
-               exit
-            end if
-         END DO
-         pos(1) = pos(1)/km2AU
-         pos(2) = pos(2)/km2AU
-         pos(3) = pos(3)/km2AU
-         vel(1) = vel(1)/km2AU
-         vel(2) = vel(2)/km2AU
-         vel(3) = vel(3)/km2AU
+         call read_jpl_csv(fun, t, pos, vel, ierr)
       else
          ierr = 10
          return

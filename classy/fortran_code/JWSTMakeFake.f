@@ -1,4 +1,4 @@
-C-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*
+c-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*
 
       program XX
 
@@ -6,6 +6,7 @@ C-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*
 
       integer(kind=4) obs_code, ierr, niter, nobjects, object_number
       integer(kind=4) output_lun, max_objects, max_iters
+      integer(kind=4) traj_lun
       integer(kind=4) field_number, i, j, version, k
       integer, allocatable :: rseed(:)
       integer rsize
@@ -33,15 +34,19 @@ C     if in_sample=1 then we include this object, otherwise skip
       real(kind=8) obs_ra, obs_dec, obs_radius, cos_obs_dec
       real(kind=8) r, ran_mag
       character in_str*120
-      character output_filename*120, field*120
+      character output_filename*120, field*120, trajectory*120
       character*80 message
 
       max_iters = 1E9
-      obs_code = 500
 
       CALL parse_args(field, ra_cen, dec_cen, obs_jday, 
-     $                fake_jday, max_objects)
+     $                fake_jday, max_objects, trajectory)
 
+      traj_lun=12
+      open(unit=traj_lun, file=trajectory, status='old')
+      obs_code = traj_lun
+
+      
 C     field == name of field to make fakes for, can be any string
 C     ra_cen == central RA of region to get fake sources for (deg)
 C     dec_cen == central DEC of region to get fake sources for (deg)
@@ -59,13 +64,14 @@ C     realization of the Kuiper belt
          rseed(i) = 123456789
       end do
 
+      
 
 C     compute the cos_of_dec once as we need this many times.
       cos_obs_dec = cos(dec_cen*drad)
 
 C     For each field we pull all the sources that are within 1.2
 C     degrees. This ensures we can plant sources in every ccd of mosaic.
-      obs_radius = 1.2*drad
+      obs_radius = (3/60.)*drad
 
 C     create the output file name string, little finiky. 
       do i = 1, len(in_str)
@@ -91,6 +97,7 @@ C     create the output file name string, little finiky.
       open (unit=output_lun, file=output_filename, status='new')
 
 C     Get observatory location for primary/master location
+      
       call ObsPos (obs_code, obs_jday, obs_pos, 
      $     vel, ros, ierr)
 
@@ -137,7 +144,9 @@ C     Given this random orbit determine if its on the image.
 C     This loop selects sources that are within RADIUS for a field 
          obs_ra = ra_cen*drad
          obs_dec = dec_cen*drad
-         if (radius(ra, dec, obs_ra, obs_dec) .lt. obs_radius) then
+         radius = sqrt(((ra-obs_ra)*cos_obs_dec)**2 + 
+     $        (dec-obs_dec)**2)
+         if ( radius .lt. obs_radius ) then
             nobjects = nobjects +1
 
 C     Compute the Ground Based magnitude
@@ -194,13 +203,6 @@ C     Compute position 1 day later to get sky motion rate
 
       end program xx
 
-      real*8 function radius(ra1, dec1, ra2, dec2)
-      real*8 ra1, dec1, ra2, dec2
-      
-      radius = acos(sin(dec1)*sin(dec2) + 
-     $     cos(dec1)*cos(dec2)*cos(ra1-ra2))
-      return
-      end function radius
 
       real*8 function MA(M, epoch_M, a, jday)
 C     Move the Mean Annomally from jday to epoch_M
@@ -231,19 +233,22 @@ C     Move the Mean Annomally from jday to epoch_M
       write(0,*) " JD    -- Julian Date assocaited to RA/DEC position"
       write(0,*) " JD    -- Julian Date for image to plant into"
       write(0,*) " NITER -- Number of KBOs to generate"
+      write(0,*) " TRAJ  -- File with JPL Ephem JWST"
       write(0,*) ""
 
       call exit(ierr)
       end subroutine usage
 
 
-      subroutine parse_args(name, ra, dec, obs_jd, fake_jd, max_objects)
+      subroutine parse_args(name, ra, dec,
+     $     obs_jd, fake_jd, max_objects, trajectory)
 
 C     Get the JD we will generate FAKE objects positions for.
 C     Usage;  MakeFake obs_ra obs_dec obs_jday fake_jday number
 
       real*8 ra, dec, obs_jd, fake_jd
       character*80 message, command
+      character*120 trajectory
       character*120 in_str, name
       integer*4 length
       integer*4 max_objects
@@ -253,7 +258,7 @@ C     Usage;  MakeFake obs_ra obs_dec obs_jday fake_jday number
 
       nargs = COMMAND_ARGUMENT_COUNT()
       message = 'Wrong number of arguments'
-      if (nargs .ne. 6) CALL usage(message, -1)
+      if (nargs .ne. 7) CALL usage(message, -1)
 
       argn = 0
       length = 80
@@ -292,11 +297,17 @@ C     Get the number of objects to generate
       if (ierr .ne. 0) GOTO 1000
       read (in_str, *, err=1000) max_objects
 
+      argn = 7
+      CALL GET_COMMAND_ARGUMENT(argn, in_str, length, ierr)
+      if (ierr .ne. 0) GOTO 1000
+      read (in_str, *, err=1000) trajectory
+
       write(0,*) "Executing command: ",command
       write(0,*) "Field Centre", ra, dec
       write(0,*) "Taken on JD:", obs_jd
       write(0,*) "Propogating elements to:", fake_jd
       write(0,*) "Number of objects:", max_objects
+      write(0,*) "JWST Trajectory from:", trajectory
       RETURN
 
  1000 CONTINUE
