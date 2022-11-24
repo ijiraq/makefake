@@ -1,9 +1,19 @@
 
+FC=gfortran
+
 all: ClassyMakeFake Obj_At_Date
 
-ClassyMakeFake: ClassyMakeFake.f utils.f
-	gfortran -o ClassyMakeFake ClassyMakeFake.f
-	
+OBJ	= utils.o read_jpl_ephem.o
+
+%.o	: %.f90
+	$(FC) -c $< 
+
+ClassyMakeFake: ClassyMakeFake.o $(OBJ)
+	gfortran -o ClassyMakeFake ClassyMakeFake.o $(OBJ)
+
+JWSTMakeFake: JWSTMakeFake.o $(OBJ)
+	gfortran -o JWSTMakeFake JWSTMakeFake.o $(OBJ)
+
 Obj_At_Date: Obj_At_Date.f SurveySubs.f
 	gfortran -o Obj_At_Date Obj_At_Date.f
 
