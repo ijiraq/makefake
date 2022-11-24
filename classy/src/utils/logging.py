@@ -1,12 +1,14 @@
 """
 Use this module to setup logging of executed scripts.
 
-Allow scripts to have results logged to a VOSpace annotation associated to a file relevant to the exectued script.
+Allow scripts to have results logged to a VOSpace annotation associated to a file relevant to the executed script.
 """
 import logging
 
+
 def log_filename(prefix, task, version, ccd):
     return "{}{}_{}{}{}".format(prefix, task, version, ccd, TEXT_EXT)
+
 
 def log_location(expnum, ccd):
     return os.path.dirname(Artifact(Observation(expnum), ccd=ccd).uri)
@@ -14,10 +16,10 @@ def log_location(expnum, ccd):
 
 class LoggingManager:
     """
-    Manage the process of starting scripts and logging the results to VOSpace anotation
+    Manage the process of starting scripts and logging the results to VOSpace annotation
     """
 
-    def __init__(self, task:str, prefix:str, expnum:str, ccd:int, version:str, dry_run:bool = False):
+    def __init__(self, task: str, prefix: str, expnum: str, ccd: int, version: str, dry_run: bool = False):
         self.logging = logging.getLogger('')
         self.log_format = logging.Formatter('%(asctime)s - %(module)s.%(funcName)s %(lineno)d: %(message)s')
         self.filename = log_filename(prefix, task, ccd=ccd, version=version)
