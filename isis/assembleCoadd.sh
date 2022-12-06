@@ -1,12 +1,16 @@
 #!/bin/bash
 #
-# Build a reference exposure (Coadd) given a list of input exposures and those to be used for the reference stack
+# Build a reference exposure (Coadd) given a list of input exposures (build skymap)
+# and those to be used for the reference stack (best 1/3rd of imaegs)
 #
 TYPE="interp"
 SWARP="/usr/local/bin/swarp"
 CMD=$(basename "${BASH_SOURCE[0]}")
 SRCDIR=$(dirname "${BASH_SOURCE[0]}")
 GET_KEYWORD="${SRCDIR}/get_keyword.py"
+. ${SRCDIR}/utils.sh
+. ${SRCDIR}/sk_utils.sh
+
 export NOPTS=3
 
 export USAGE="${CMD} [-h] [-l DEBUG|INFO|WARNING|ERROR] exposure_lst reference_list ccd
@@ -33,7 +37,7 @@ the reference_list file
 A seperate call to launch a swarp of each expousre onto the reference
 frame is needed.  "
 
-. "${SRCDIR}/utils.sh"
+. "${SRCDIR}/argparse.sh"
 
 CONFIG="${DBIMAGES}/configs/swarp.config"
 
@@ -71,13 +75,14 @@ name=$(launch_name "ref-head" ${PREFIX} ${ref_exp} ${VERSION} ${ccd})
 cd "${ref_dir}" || logmsg ERROR "Cannot cd to ${ref_dir}?" $?
 logmsg INFO "Working in $(pwd)"
 logmsg INFO "creating master reference header..."
-sk_wait.sh "$("sk_launch.sh" "uvickbos/swarp:0.1" "${name}" "${SWARP}" \
+sk_wait "$(sk_launch "uvickbos/swarp:0.1" "${name}" "${SWARP}" \
 	     -c "${CONFIG}" -HEADER_ONLY Y -IMAGEOUT_NAME "${ref_head}" \
 	     -WEIGHT_TYPE NONE  @"${stack_inputs}")"
 [ -f "${ref_head}" ] || logmsg ERROR "Failed to create ${ref_head} in ${ref_dir}" $?
 logmsg INFO "Header ${ref_head} contains reference frame"
 
 # Create weight and header files for each input image (a link to the flat field and a link to the reference header)
+JOBID=()
 logmsg INFO "Putting links to the reference header into each input image directory"
 while IFS="" read -r image || [[ -n ${image} ]]
 do
@@ -105,15 +110,16 @@ do
     [ -f "${weight_file}" ] && rm "${weight_file}"
     ln -s "${relpath}" "${weight_file}"
     logmsg INFO "Launching swarp of ${exp_file} onto ${interp_head} reference"
-    ( sk_launch.sh uvickbos/swarp:0.1 "${name}" \
-		   ${SWARP} \
-		   -c "${CONFIG}" \
-		   -IMAGEOUT_NAME "${interp_file}" \
-		   -COPY_KEYWORDS MJDEND,EXPTIME "${exp_file}" || logmsg ERROR "swarp launch of ${image} failed" $? )
-    logmsg INFO "Launched"
+    THISID="$(sk_launch uvickbos/swarp:0.1 "${name}" ${SWARP} \
+    			   -c "${CONFIG}" \
+		   	   -IMAGEOUT_NAME "${interp_file}" \
+		   	   -COPY_KEYWORDS MJDEND,EXPTIME "${exp_file}")"
+    echo ${THISID}
+    (echo ${THISID} | grep -q ${name}) || JOBID+=(${THISID})
 
 done < "${stack_inputs}"
 
+sk_wait "${JOBID[@]}"
 
 cd "${ref_dir}" || logmsg ERROR "Cannot change to directory ${ref_dir}" $?
 if [ ! -f "ref.OK" ]
@@ -123,7 +129,7 @@ then
     logmsg INFO "Making the reference image ${ref_image} using ${ref_inputs} in $(pwd)"
     name=$(launch_name "swarp" "" ${ref_image%.fits} "" "" )
     name=${name//_/-}
-    sk_wait.sh "$(sk_launch.sh uvickbos/swarp:0.1 ${name} ${SWARP} -c "${CONFIG}" \
+    sk_wait "$(sk_launch uvickbos/swarp:0.1 ${name} ${SWARP} -c "${CONFIG}" \
 			      -IMAGEOUT_NAME "${ref_image}" "@${ref_inputs}")"
     [ -f "${ref_image}" ] || logmsg ERROR "Failed to create ${ref_image}" $?
 fi

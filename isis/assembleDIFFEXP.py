@@ -27,23 +27,31 @@ def main():
         "diff_filename",  help="The subtracted image, from ISSIS (conv_interp_????)")
     parser.add_argument(
         "mask_filename",  help="The MASK image")
+    parser.add_argument(
+            "--version", default='p', choices=['s','p'], help="Scrambled or Processed?")
 
     args = parser.parse_args()
-    build_mef(args.primary, args.interp_filename, args.diff_filename, args.mask_filename)
+    build_mef(args.primary, args.interp_filename, args.diff_filename, args.mask_filename, version=args.version)
 
 
-def build_mef(primary: str, interp_filename: str, diff_filename: str, mask_filename: str) -> str:
+def build_mef(primary: str, interp_filename: str, diff_filename: str, mask_filename: str, version: str) -> str:
     """
 
     :param primary: the primary image this is the DIFFEXP for
     :param interp_filename: the swarped version of primary (inter_)
     :param diff_filename: the difference image
     :param mask_filename: the mask image for this difference
+    :param version: is this the scramble (s) or processed (p) version?
 
     :return: DIFF filename
 
     """
     print(primary)
+
+    PREFIX="DIFFEXP"
+    if version == "s":
+        PREFIX="rtDIFFEXP"
+
     with fits.open(primary) as hdulist:
         header = hdulist[0].header
 
@@ -82,7 +90,7 @@ def build_mef(primary: str, interp_filename: str, diff_filename: str, mask_filen
 
     expnum = diff_hdulist[0].header['EXPNUM']
     ccdnum = diff_hdulist[0].header["EXTVER"]
-    diff_image = f"DIFFEXP-{expnum}-{ccdnum:02d}.fits"
+    diff_image = f"{PREFIX}-{expnum}-{ccdnum:02d}.fits"
     diff_hdulist.writeto(diff_image, overwrite=True)
     return diff_image
 

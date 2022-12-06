@@ -2,6 +2,9 @@
 # loop over a set of exposure numbers launching the imageDifference task with correct inputs
 CMD=$(basename "${BASH_SOURCE[0]}")
 SRCDIR=$(dirname "${BASH_SOURCE[0]}")
+. ${SRCDIR}/utils.sh
+. ${SRCDIR}/sk_utils.sh
+
 export NOPTS=3
 TYPE="interp"
 export USAGE="${CMD} reference exposure_list ccd
@@ -16,7 +19,7 @@ subtract each dbimages/expnum/ccd/interp_expnum for expnum in exposure_list
 
 "
 
-. "${SRCDIR}/utils.sh"
+. "${SRCDIR}/argparse.sh"
 
 config="${DBIMAGES}/configs/isis.config"
 ref_exp=$1 && shift
@@ -38,11 +41,11 @@ do
     logmsg INFO "launching difference of ${result_file} = ${ref_image} - ${img_file}"
     logmsg DEBUG "mrj_phot config ${config}"
     name=$(launch_name "imagedifference" ${PREFIX} ${expnum} ${VERSION} ${ccd})
-    JOBID="$(sk_launch.sh uvickbos/isis:2.2 "${name}" "${SRCDIR}/imageDifference.sh" -l DEBUG ${config} "${ref_image}" "${img_file}" "${result_file}")"
+    THISID="$(sk_launch uvickbos/isis:2.2 "${name}" "${SRCDIR}/imageDifference.sh" -l DEBUG ${config} "${ref_image}" "${img_file}" "${result_file}")"
+    echo ${THISID}
+    (echo ${THISID} | grep -q ${name}) || JOBID+=(${THISID})
+
 done < "${exposure_list}"
 
-for ID in "${JOBID[@]}"
-do
-  logmsg INFO "Pausing until ${ID} finished"
-  sk_wait.sh "${ID}"
-done
+sk_wait "${JOBID[@]}"
+

@@ -4,6 +4,8 @@
 #
 SRCDIR=$(dirname "${BASH_SOURCE[0]}")
 CMD="$(basename "${BASH_SOURCE[0]}")"
+. ${SRCDIR}/utils.sh
+
 export NOPTS=4
 export USAGE="${CMD} [-h] [-l [DEBUG,INFO,WARNING,ERROR]] isis_config reference_image.fits image.fits result.fits
 
@@ -13,7 +15,7 @@ with mrj_phot and store difference in result.fits
 this script runs in the uvickbos/isis:2.2 container
 
 "
-. "${SRCDIR}/utils.sh"
+. "${SRCDIR}/argparse.sh"
 
 isis_config=$(realpath $1) && shift
 reference=$(realpath $1) && shift
