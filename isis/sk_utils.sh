@@ -10,6 +10,13 @@ sk_launch(){
     CMD="/arc/home/jkavelaars/skaha_tools/scripts/sk_cmd.sh"
 
     [ -f "${NAME}.OK" ] && echo "# INFO ${NAME}.OK exists, exiting" && exit
+    # wait until I have fewer than 100 jobs
+    N=101
+    while [ ${N} -gt 100 ]
+    do 
+       N=$(sk_status | grep -n "Running")
+       sleep 5
+    done 
 
     N=1
     while true && [ ${N} -le 10 ]
