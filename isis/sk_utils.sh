@@ -9,22 +9,24 @@ sk_launch(){
     ARGS=$*
     CMD="/arc/home/jkavelaars/skaha_tools/scripts/sk_cmd.sh"
 
-    [ -f "${NAME}.OK" ] && echo "# INFO ${NAME}.OK exists, exiting" && exit
-    # wait until I have fewer than 100 jobs
-    N=101
-    while [ ${N} -gt 100 ]
-    do 
-       N=$(sk_status | grep -n "Running")
-       sleep 5
+    [ -f "${NAME}.OK" ] && echo "# INFO ${NAME}.OK exists, exiting" && return
+    # wait until I have fewer than 200 jobs
+    N=$( sk_status | grep -c "Running" )
+    while [ ${N} -gt 200 ]
+    do
+	echo "# Currently ${N} jobs running, waiting to launch" >&2
+        sleep 15
+        N=$( sk_status | grep -c "Running" )
     done 
 
     N=1
     while true && [ ${N} -le 10 ]
     do
-	JOBID="$(curl --fail --no-progress-meter -E "${CERT}" "${URL}" -d "name=${NAME}" -d "image=${IMAGE}" \
+	JOBID="$(curl --fail --no-progress-meter -E "${CERT}" "${URL}" \
+		      	     -d "name=${NAME}" -d "image=${IMAGE}" \
 		      	     --data-urlencode "cmd=${CMD}" \
 		             --data-urlencode "args=$(pwd) $ARGS")" && break
-	echo "Launch of ${IMAGE} with ${ARGS} failed.. retrying" >&2
+	echo "Launch of ${URL} ${IMAGE} with ${ARGS} failed.. retrying" >&2
 	N=$(expr ${N} + 1)
 	sleep 5
     done
@@ -35,6 +37,7 @@ sk_status() {
     LB=""
     RB=""
     SURL="${URL}"
+    JOBID=""
     if [ $# -eq 1 ] 
     then
 	JOBID=$1 && shift
@@ -47,6 +50,7 @@ sk_status() {
     do
 	skaha_json="$(curl --fail --no-progress-meter -E "${CERT}" "${SURL}")" && break
 	echo "Failed to get status from ${SURL}" >&2
+	skaha_json="[{\"name\": \"unknown\", \"image\": \"unknown\", \"startTime\": \"unknown\", \"id\": \"${JOBID}\", \"status\": \"Pending\"}]"
 	sleep 5
 	N=$(expr ${N} + 1)
     done
@@ -66,7 +70,8 @@ function sk_wait() {
 		    echo "Waiting for ${job} to finish" >&2
 		    sk_status > ${f}
 	    done
-	    grep "${job}" "${f}"
+	    status=$(grep "${job}" "${f}" | awk ' { print $2 } ')
+	    [ "$status" == "Succeeded" ] || return 1
     done
 }
 
