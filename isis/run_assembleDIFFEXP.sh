@@ -38,4 +38,4 @@ do
 
 done < "${exposure_list}"
 
-sk_wait "${JOBID[@]}"
+sk_wait "${JOBID[@]}" || exit $?

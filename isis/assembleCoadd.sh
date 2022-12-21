@@ -77,7 +77,8 @@ logmsg INFO "Working in $(pwd)"
 logmsg INFO "creating master reference header..."
 sk_wait "$(sk_launch "uvickbos/swarp:0.1" "${name}" "${SWARP}" \
 	     -c "${CONFIG}" -HEADER_ONLY Y -IMAGEOUT_NAME "${ref_head}" \
-	     -WEIGHT_TYPE NONE  @"${stack_inputs}")"
+	     -WEIGHT_TYPE NONE  @"${stack_inputs}")" || exit $?
+
 [ -f "${ref_head}" ] || logmsg ERROR "Failed to create ${ref_head} in ${ref_dir}" $?
 logmsg INFO "Header ${ref_head} contains reference frame"
 
@@ -119,7 +120,7 @@ do
 
 done < "${stack_inputs}"
 
-sk_wait "${JOBID[@]}"
+sk_wait "${JOBID[@]}" || exit $?
 
 cd "${ref_dir}" || logmsg ERROR "Cannot change to directory ${ref_dir}" $?
 if [ ! -f "ref.OK" ]
@@ -130,6 +131,6 @@ then
     name=$(launch_name "swarp" "" ${ref_image%.fits} "" "" )
     name=${name//_/-}
     sk_wait "$(sk_launch uvickbos/swarp:0.1 ${name} ${SWARP} -c "${CONFIG}" \
-			      -IMAGEOUT_NAME "${ref_image}" "@${ref_inputs}")"
+			      -IMAGEOUT_NAME "${ref_image}" "@${ref_inputs}")" || exit $?
     [ -f "${ref_image}" ] || logmsg ERROR "Failed to create ${ref_image}" $?
 fi

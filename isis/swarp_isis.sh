@@ -44,19 +44,19 @@ ccd=$1 && shift
 # we can run that command repeatedly until all 'swarps' succeed. 
 # here we just do it once
 
-assembleCoadd.sh -l INFO ${exp_list} ${ref_list} ${ccd}
+assembleCoadd.sh -l INFO ${exp_list} ${ref_list} ${ccd} || logmsg ERROR "assembleCoadd.sh returned error" $?
 
 # now we do the image differencing
 # this can also be run repeatedly also, until all frames succeed.  
 # each chip directory should have a file like conv_interp_fkXXXXXXXpYY.OK to indicate success
-run_imageDifference.sh -l INFO $(head -n 1 ${ref_list}) ${exp_list} ${ccd}
+run_imageDifference.sh -l INFO $(head -n 1 ${ref_list}) ${exp_list} ${ccd} || logmsg ERROR "run_imageDifference.sh returned error" $?
 
 # Next we build a mask of the differenced image to help kbmod find KBOs instead of bad columns
-run_makeMask.sh -l INFO ${exp_list} ${ccd}
+run_makeMask.sh -l INFO ${exp_list} ${ccd} || logmsg ERROR "run_makeMask.sh returned error" $?
 # wait until the last job finishes 
 
 # Now we put the difference, masks  and variance (made internall) into an MEF
 # this is also the step where we 'invert' the difference images as 'ISIS' subtracts from the ref
-run_assembleDIFFEXP.sh -l INFO ${exp_list} ${ccd} 
+run_assembleDIFFEXP.sh -l INFO ${exp_list} ${ccd}  || logmsg ERROR "run_assembleDIFFEXP.sh returned error " $?
 
 # DONE

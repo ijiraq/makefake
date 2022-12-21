@@ -17,6 +17,7 @@ exposure_list="$(realpath $1)" && shift
 ccd=$1 && shift
 
 JOBID=()
+DELLIST=()
 logmsg INFO "Making mask using ${PREFIX} image"
 while IFS="" read -r expnum || [[ -n ${expnum} ]]
 do
@@ -31,10 +32,11 @@ do
       		 --maskbits BAD --maskbits SAT \
 		 --maskbits SENSOR_EDGE --maskbits NO_DATA)"
     (echo ${THISID} | grep -q ${name}) || JOBID+=(${THISID})
+    DELLIST+=("mask_${image_name}")
     echo ${THISID}
 done < "${exposure_list}"
 
-sk_wait "${JOBID[@]}"
+sk_wait "${JOBID[@]}" || exit $?
 
 JOBID=()
 logmsg INFO "swarpING ${PREFIX} mask to mask_${TYPE}"
@@ -56,12 +58,13 @@ do
 		 -OVERSAMPLING 1 \
 		 -IMAGEOUT_NAME ${mask_name} \
 		 ${input_mask})"
+    DELLIST+=("${mask_name})
     logmsg DEBUG "launch of ${name} response ${THISID}"
     ( echo "${THISID}" | grep -q ${name} ) || JOBID+=("${THISID}")
     echo "${THISID}"
 done < "${exposure_list}"
 
-sk_wait "${JOBID[@]}"
+sk_wait "${JOBID[@]}" || exit $?
 
 JOBID=()
 logmsg INFO "Augmenting mask_${TYPE} to mask padding store to mask_mask_${TYPE}"
@@ -80,5 +83,6 @@ do
 
 done < "${exposure_list}"
 
-sk_wait "${JOBID[@]}"
+sk_wait "${JOBID[@]}" || exit $? 
 
+echo "${DELLIST[@]}"

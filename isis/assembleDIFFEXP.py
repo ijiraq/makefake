@@ -10,6 +10,7 @@ import logging
 import ccdproc
 
 
+
 def main():
     parser = argparse.ArgumentParser(
         description=
@@ -46,7 +47,6 @@ def build_mef(primary: str, interp_filename: str, diff_filename: str, mask_filen
     :return: DIFF filename
 
     """
-    print(primary)
 
     PREFIX="DIFFEXP"
     if version == "s":
@@ -92,6 +92,8 @@ def build_mef(primary: str, interp_filename: str, diff_filename: str, mask_filen
     ccdnum = diff_hdulist[0].header["EXTVER"]
     diff_image = f"{PREFIX}-{expnum}-{ccdnum:02d}.fits"
     diff_hdulist.writeto(diff_image, overwrite=True)
+    for filename in (interp_filename, diff_filename, mask_filename):
+        os.unlink(filename)
     return diff_image
 
 
