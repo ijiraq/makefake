@@ -61,6 +61,7 @@ sk_status() {
 
 function sk_wait() {     
     JOBS=("$@")     
+    [[ "${JOBS}" == *"exists"* ]] && return 0 
     f=$(tempfile)
     sk_status > ${f}
     for job in "${JOBS[@]}"
@@ -70,9 +71,11 @@ function sk_wait() {
 		    echo "Waiting for ${job} to finish" >&2
 		    sk_status > ${f}
 	    done
-	    status=$(grep "${job}" "${f}" | awk ' { print $2 } ')
+	    status=$(grep "${job}" "${f}" | awk ' { print $3 } ')
+	    echo ${status}
 	    [ "$status" == "Succeeded" ] || return 1
     done
+    return 0
 }
 
 function sk_delete() {
