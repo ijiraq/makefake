@@ -58,7 +58,7 @@ do
 		 -OVERSAMPLING 1 \
 		 -IMAGEOUT_NAME ${mask_name} \
 		 ${input_mask})"
-    DELLIST+=("${mask_name})
+    DELLIST+=("${mask_name}")
     logmsg DEBUG "launch of ${name} response ${THISID}"
     ( echo "${THISID}" | grep -q ${name} ) || JOBID+=("${THISID}")
     echo "${THISID}"
