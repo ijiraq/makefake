@@ -8,8 +8,11 @@ OBJ= utils.o read_jpl_ephem.o
 %.o: %.f90
 	$(FC) -c $< 
 
-ClassyMakeFake: ClassyMakeFake.o $(OBJ)
-	gfortran -o ClassyMakeFake ClassyMakeFake.o $(OBJ)
+ClassyMakeFakeV4: ClassyMakeFakeV4.o $(OBJ)
+	gfortran -o ClassyMakeFakeV4 -O3 ClassyMakeFakeV4.o $(OBJ)
+
+HSCMakeFake: ClassyMakeFake.o $(OBJ)
+	gfortran -o HSCMakeFake ClassyMakeFake.o $(OBJ)
 
 JWSTMakeFake: JWSTMakeFake.o $(OBJ)
 	gfortran -o JWSTMakeFake JWSTMakeFake.o $(OBJ)
