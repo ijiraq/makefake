@@ -1,0 +1,13 @@
+'custom_bit_mask': {'BAD': 0, 'SAT': 1, 'INTRP': 2, 'EDGE': 4, 'DETECTED': 5, 'DETECTED_NEGATIVE': 6, 'SUSPECT': 7, 'NO_DATA': 8, 'CROSSTALK': 9, 'NOT_BLENDED': 10, 'UNMASKEDNAN': 11, 'BRIGHT_OBJECT': 12, 'CLIPPED': 13, 'INEXACT_PSF': 14, 'REJECTED': 15, 'SENSOR_EDGE': 16}, 
+'custom_flag_keys': [], 
+DEBUG:root:custom_bit_mask : None
+DEBUG:root:custom_flag_keys : []
+'ang_arr': [-2.791592653589793, 3.141592653589793, 8],
+DEBUG:root:ang_arr : [3.141, 3.141, 15]
+'psf_val': 3.3, 
+DEBUG:root:psf_val : 1.4231878815637076
+'file_format': 'DIFFEXP-{:07d}-0290022-103.fits', 
+DEBUG:root:file_format : DIFFEXP-{:07d}-103.fits
+
+
+DEBUG:root:do_clustering : True

@@ -40,9 +40,14 @@ def main():
     parser.add_argument('--scratch-path', default="/scratch", help="Base directory for scratch files on container")
     parser.add_argument('--dry-run', default=False, action='store_true', help="Just test to see if script builds")
     parser.add_argument('--log-level', choices=['INFO', 'ERROR', 'DEBUG'], default='ERROR')
-    
-    args = parser.parse_args()
+    parser.add_argument('--mask-flags', nargs='*', choices=['BRIGHT_OBJECT','CLIPPED', 'CR', 'DETECTED', 'DETECTED_NEGATIVE', 'EDGE',
+                                                            'INEXACT_PSF',
+                                                            'INTRP', 
+                                                            'NOT_DEBLENDED', 'NO_DATA', 'REJECTED', 'SAT',
+                                                            'SENSOR_EDGE', 'SUSPECT', 'UNMASKEDNAN'],
+                        default=['EDGE', 'NO_DATA', 'SAT', 'INTRP', 'REJECTED', 'NOT_DEBLENDED', 'BRIGHT_OBJECT'])
 
+    args = parser.parse_args()
     logging.basicConfig(level=getattr(logging, args.log_level))
     
     visit = args.visit.isot.split('T')[0]
@@ -53,10 +58,10 @@ def main():
     if ref_im_num is not None:
         file_format_parts.append(f"{ref_im_num:07d}")
     file_format_parts.append(f"{chipNum:02d}")
-    file_format_parts.append("0000")
-    file_format_parts.append("0800")
-    file_format_parts.append("0000")
-    file_format_parts.append("0800")
+    #file_format_parts.append("0000")
+    #file_format_parts.append("0800")
+    #file_format_parts.append("0000")
+    #file_format_parts.append("0800")
     file_format = "-".join(file_format_parts)+".fits"
 
     logging.debug(f"File format string: {file_format}")
@@ -84,6 +89,20 @@ def main():
         if not os.access(os.path.join(im_filepath, os.path.basename(filename)), os.F_OK):
             shutil.copy2(filename, im_filepath)
 
+    # get the bit mask values from those requested by user, just use the last file copied over
+    flag_hdu = fits.open(filename)[2]
+    custom_flag_keys = []
+    custom_flag_mask = {}
+    for keyword in args.mask_flags:
+        logging.debug(f"Looking up bit value for {keyword} in {filename}")
+        bit = flag_hdu.header.get(f'MP_{keyword}', None)
+        if bit is None:
+            logging.warning(f"Keyworkd {keyword} not found in mask for {filename}")
+            continue
+        custom_flag_mask[keyword] = bit
+        custom_flag_keys.append(keyword)
+    custom_flag_mask = None
+
     # create the file containing the list of times.
     create_times_file(im_filepath, time_file)
 
@@ -94,7 +113,7 @@ def main():
     ang_steps = 15 # ?? for half angles # 15 for full angles
     num_obs = 10 # minimum number of images reqquired for source detection
     psf_val = 1.5
-    mask_num_images = 20
+    mask_num_images = 10
     sigmaG_lims = [25,75]
     eps = 0.0008
     ang_below = -np.pi + 0.35 # Angle below ecliptic
@@ -103,6 +122,8 @@ def main():
     ang_arr = [ang_below, ang_above, ang_steps]
 
     input_parameters = {
+        'custom_bit_mask': custom_flag_mask,
+        'custom_flag_keys': custom_flag_keys,
         'im_filepath':im_filepath,
         'res_filepath':res_filepath,
         'time_file':time_file,
@@ -117,7 +138,7 @@ def main():
         'mom_lims':[50.5,50.5,3.5,3.0,3.0],#[37.5,37.5,2.5,2.0,2.0],
         'psf_val':1.5,
         'peak_offset':[3.0,3.0],
-        'chunk_size':100,
+        'chunk_size':1000000,
         'stamp_type':'parallel_sum', #can be cpp_median or parallel_sum
         'eps':0.0008,
         'do_clustering': True,
@@ -139,16 +160,16 @@ def main():
     if args.dry_run:
         sys.exit()
     else:
-        run(input_parameters)
+        run(input_parameters, scratch_path)
 
-def run(input_parameters):
+def run(input_parameters, scratch_path):
     # from create_stamps import CreateStamps, CNNFilter, VisualizeResults, load_stamps
     from run_search import run_search
     rs = run_search(input_parameters)
     rs.run_search()
     del rs
     gc.collect()
-    shutil.rmtree(scratch_dir, ignore_errors=True)
+    shutil.rmtree(scratch_path, ignore_errors=True)
 
 
 if __name__ == '__main__':
