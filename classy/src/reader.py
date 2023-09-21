@@ -33,7 +33,7 @@ from mp_ephem.ephem import Observation
 from dataclasses import dataclass, field
 from abc import ABC, abstractmethod
 
-KEYS = string.ascii_uppercase + string.ascii_lowercase + string.digits
+KEYS = string.digits + string.ascii_uppercase + string.ascii_lowercase
 
 
 def year_to_letter(year):
@@ -41,7 +41,7 @@ def year_to_letter(year):
 
 
 def index_to_key(index):
-    return KEYS[self.index // 62] + KEYS[self.index % 62]
+    return KEYS[index // 62] + KEYS[index % 62]
 
 
 def key_to_index(key):
@@ -66,7 +66,7 @@ class KBModRecord:
     chip: int  # CCD number
     index: int  # "Index of the object in the field"
     mjd: float  # "MJD of the observation"
-    x: float  # "X position of the object on the CCD"
+    x: Quantity  # "X position of the object on the CCD"
     y: float  # "Y position of the object on the CCD"
     dx: float  # "X velocity of the object on the CCD"
     dy: float  # "Y velocity of the object on the CCD"
@@ -97,30 +97,27 @@ class KBModRecord:
                                        survey_code='C',
                                        mag=self.mag,
                                        mag_err=self.merr,
-                                       xpos=self.x,
+                                       xpos=self.x.value,
                                        ypos=self.y,
-                                       ra=self.ra,
-                                       dec=self.dec,
+                                       ra=self.ra * units.deg,
+                                       dec=self.dec * units.deg,
                                        band='r',
                                        date=self.date,
                                        observatory_code=568,
                                        comment="",
                                        likelihood=self.likelihood)
-        print(fff)
-         
-
 
     def offset(self, dt):
         """
         Return a new KBModRecord with the position offset by the velocity times dt
         """
-        new_coord = self.coord.spherical_offsets_by(self.dra*dt.to(units.hour).value * units.arcsec,
-                                                    self.ddec*dt.to(units.hour).value * units.arcsec)
+        new_coord = self.coord.spherical_offsets_by(self.dra * dt.to(units.hour).value * units.arcsec,
+                                                    self.ddec * dt.to(units.hour).value * units.arcsec)
         return KBModRecord(survey_field=self.survey_field,
                            chip=self.chip,
                            index=self.index,
                            mjd=self.mjd + dt.to(units.day).value,
-                           x=self.x + self.dx * dt.to(units.day).value,
+                           x=self.x + self.dx * dt,
                            y=self.y + self.dy * dt.to(units.day).value,
                            dx=self.dx,
                            dy=self.dy,
@@ -185,7 +182,7 @@ class TrackingFile(KBModFileIterator):
     """
     Class to loop over tacking observation file from lassy.
     """
-    COLUMN_NAMES = """
+    OBJ_MEASURE_COLUMNS = """
     chip
     index
     mjd
@@ -200,7 +197,7 @@ class TrackingFile(KBModFileIterator):
     dra
     ddec
     """.split()
-    COLUMN_UNITS = """
+    OBJ_MEASURE_COLUMNS_UNITS = """
     dimensionless
     dimensionless
     day
@@ -221,7 +218,8 @@ class TrackingFile(KBModFileIterator):
         if len(_mea) != len(TrackingFile.OBJ_MEASURE_COLUMNS):
             # Wrong number of records for a tracking observation
             logging.debug("Malformed line in KBMOD file: %s\n Expected %s" % (self.next_line,
-                          " ".join(TrackingFile.OBJ_MEASURE_COLUMNS)))
+                                                                              " ".join(
+                                                                                  TrackingFile.OBJ_MEASURE_COLUMNS)))
             return None
         self._next_line = None
         m = {'merr': 0.99}
@@ -246,6 +244,7 @@ class DiscoveryFile(KBModFileIterator):
         '\s*(?P<id>\d+)\s+(?P<dist>\d+(\.\d*)?)\s+(?P<mag>\d+(\.\d*)?)\s+(?P<visit>\d+)\s+(?P<chip>\d+)\s+(?P<ndet>\d+)\s*')
     OBJ_START_COLUMNS = "id dist mag visit chip ndet".split()
     OBJ_MEASURE_COLUMNS = "	x y dx dy mag mjd ra dec dra ddec".split()
+    OBJ_MEASURE_COLUMN_UNITS = "pixel pixel pixel/hour pixle/hour mag day deg deg arcsec/hour arcsec/hour".split()
 
     def get_object_info(self):
         """Return the next 'object' from the kbmod input file, or return None if not found"""
@@ -272,7 +271,8 @@ class DiscoveryFile(KBModFileIterator):
         if len(_mea) != len(DiscoveryFile.OBJ_MEASURE_COLUMNS):
             # Wrong number of records for a discovery observation
             logging.debug("Malformed line in KBMOD file: %s\n Expected %s" % (self.next_line,
-                             " ".join(DiscoveryFile.OBJ_MEASURE_COLUMNS)))
+                                                                              " ".join(
+                                                                                  DiscoveryFile.OBJ_MEASURE_COLUMNS)))
             return None
         self._next_line = None  # We've read the line, so reset the next line
         m = {}
