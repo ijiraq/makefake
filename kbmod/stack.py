@@ -55,18 +55,19 @@ def _weighted_quantile(values, quantile, sample_weight):
     return np.take_along_axis(values, np.expand_dims(ind, axis=0), axis=0)[0]
 
 
-def coadd(main, stamp):
+def coadd(mosaic, stamp):
     """
-    add stamp into main by projecting stamp to main and then adding.
-    :param fits.ImageHDU main: the control / main image
+    add stamp into mosaic by projecting stamp to main and then adding.
+    :param fits.ImageHDU mosaic: the control / main image
     :param fits.ImageHDU stamp: the stamp to add to main
     """
     array, footprint = reproject_and_coadd([main, stamp],
-                                           output_projection=main.header,
+                                           output_projection=mosaic.header,
                                            reproject_function=reproject_interp,
                                            combine_function='sum')
-    main.data = array
+    mosaic.data = array
     return
+
 
 def swarp(hdus, rate, stacking_mode="MEAN"):
     """
