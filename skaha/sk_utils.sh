@@ -1,6 +1,6 @@
 # some bash functions to work with skaha in headless mode
 CERT="${HOME}/.ssl/cadcproxy.pem"
-URL="https://ws-uv.canfar.net/skaha/session"
+URL="https://ws-uv.canfar.net/skaha/v0/session"
 export NGPU=0
 function sk_gpu() {
   export NGPU=1
@@ -28,7 +28,7 @@ function sk_launch() {
   while true && [ ${N} -le 10 ]; do
     JOBID="$(curl --fail --no-progress-meter -E "${CERT}" "${URL}" \
       -d "name=${NAME}" -d "image=${IMAGE}" \
-      -d "ram=16" -d "cores=2" -d "gpus=${NGPU}" \
+      -d "ram=16" -d "cores=2" \
       --data-urlencode "cmd=${CMD}" \
       --data-urlencode "args=$(pwd) $ARGS")" && break
     echo "Launch of ${URL} ${IMAGE} with ${ARGS} failed.. retrying" >&2
