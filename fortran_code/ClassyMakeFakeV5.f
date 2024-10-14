@@ -99,7 +99,7 @@ C     Get the observer location at fake date + 1 day (for rates)
       call ObsPos (obs_code, fake_jday+1, fake_obs_pos2,
      $     vel, fake_ros2, ierr)
 
-      write(output_lun, 9002) ClassyMakeFakeV5.f'obj_id', 'RA', 'DEC', 'Delta',
+      write(output_lun, 9002) 'obj_id', 'RA', 'DEC', 'Delta',
      $     'mag', 'a', 
      $     'e', 'inc',
      $     'node', 'peri', 'M', 'H', 'dra_arc',
